@@ -116,65 +116,65 @@ OLTP-ORI/
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT (client.exe)                                     │
-│  REPL prompt  →  SQL line(s)  →  TCP send  →  TCP recv  →  parse OK/ERR  →  display  │
+│                              CLIENT (client.exe)                                    │
+│  REPL prompt  →  SQL line(s)  →  TCP send  →  TCP recv  →  parse OK/ERR  →  display │
 └─────────────────────────────────────────────────────────────────────────────────────┘
                                             │
                                             │ TCP (host:port)
                                             ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              SERVER (server.exe)                                     │
+│                              SERVER (server.exe)                                    │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│  │  Network Layer (select() I/O loop)                                            │   │
-│  │  • Accept connections, read SQL lines, enqueue to db_worker                    │   │
-│  │  • Drain response, send back OK/ERR + CURRENT_DB + body + END                 │   │
+│  │  Network Layer (select() I/O loop)                                           │   │
+│  │  • Accept connections, read SQL lines, enqueue to db_worker                  │   │
+│  │  • Drain response, send back OK/ERR + CURRENT_DB + body + END                │   │
 │  └──────────────────────────────────┬───────────────────────────────────────────┘   │
-│                                     │ task_queue (conn_id, sql)                      │
-│                                     ▼                                                │
+│                                     │ task_queue (conn_id, sql)                     │
+│                                     ▼                                               │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│  │  DB worker thread (single)                                                    │   │
-│  │  One query at a time: run_query(sql, db_mgr, txn_mgr)                         │   │
+│  │  DB worker thread (single)                                                   │   │
+│  │  One query at a time: run_query(sql, db_mgr, txn_mgr)                        │   │
 │  └──────────────────────────────────┬───────────────────────────────────────────┘   │
-└─────────────────────────────────────┼────────────────────────────────────────────────┘
+└─────────────────────────────────────┼───────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  ORCHESTRATOR (orchestrator.cpp)                                                     │
-│  • parse_statement() → Statement                                                     │
-│  • analyse(stmt, db_mgr) → AnalysisResult                                            │
-│  • Switch on statement type: CREATE/USE/DESCRIBE/CATALOG or plan + execute           │
-│  • DML: build_plan() → build_executor() / execute_plan() → print results              │
+│  ORCHESTRATOR (orchestrator.cpp)                                                    │
+│  • parse_statement() → Statement                                                    │
+│  • analyse(stmt, db_mgr) → AnalysisResult                                           │
+│  • Switch on statement type: CREATE/USE/DESCRIBE/CATALOG or plan + execute          │
+│  • DML: build_plan() → build_executor() / execute_plan() → print results            │
 └─────────────────────────────────────────────────────────────────────────────────────┘
           │                    │                    │                    │
           │ Create/Use/        │ INSERT/            │ SELECT             │ UPDATE/DELETE
           │ Describe/Catalog   │                    │                    │
           ▼                    ▼                    ▼                    ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  DatabaseManager │  │  Planner          │  │  Planner          │  │  Planner          │
+┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐  ┌───────────────────┐
+│  DatabaseManager │  │  Planner         │  │  Planner           │  │  Planner          │
 │  • create_db     │  │  • InsertPlan    │  │  • SeqScan/        │  │  • UpdatePlan/    │
 │  • use_db        │  │  • ValuesPlan    │  │    Filter/Project/ │  │    DeletePlan     │
 │  • get_storage   │  │  Executor        │  │    Sort/Collect    │  │  • Filter + Scan  │
-│  Catalog (meta)  │  │  • InsertExecutor│  │  SelectExecutor   │  │  Executor         │
-└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
+│  Catalog (meta)  │  │  • InsertExecutor│  │  SelectExecutor    │  │  Executor         │
+└────────┬─────────┘  └────────┬─────────┘  └────────┬───────────┘  └─────────┬─────────┘
          │                     │                     │                     │
          │                     │                     │                     │
          ▼                     ▼                     ▼                     ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────────────────────┐
 │  STORAGE LAYER                                                                       │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────────────────────────┐  │
+│  ┌─────────────┐  ┌─────────────────┐  ┌──────────────────────────────────────────┐  │
 │  │ Catalog     │  │ Storage         │  │ B+ tree (per table, PK)                  │  │
-│  │ • 3-slot    │  │ • read/write    │  │ • IndexScan when WHERE on PK prefix     │  │
+│  │ • 3-slot    │  │ • read/write    │  │ • IndexScan when WHERE on PK prefix      │  │
 │  │   LRU meta  │  │   pages         │  │ • SeqScan otherwise                      │  │
-│  │ • flush     │  │ • schema from   │  │ • Used for INSERT/UPDATE/DELETE by key  │  │
-│  └──────┬──────┘  │   catalog       │  └─────────────────────────────────────────┘  │
-│         │         └────────┬────────┘                                               │
+│  │ • flush     │  │ • schema from   │  │ • Used for INSERT/UPDATE/DELETE by key   │  │
+│  └──────┬──────┘  │   catalog       │  └──────────────────────────────────────────┘  │
+│         │         └────────┬────────┘                                                │
 │         │                  │  BufferPool, PageLayout, SchemaSerializer    │
-│         ▼                  ▼                                                          │
-│  ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│  │  DISK: @data/<db>/<table>.ibd                                                │   │
-│  │  Page 0 = meta (schema); rest = slotted row pages                             │   │
-│  └──────────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+│         ▼                  ▼                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐    │
+│  │  DISK: @data/<db>/<table>.ibd                                                │    │
+│  │  Page 0 = meta (schema); rest = slotted row pages                            │    │
+│  └──────────────────────────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Interactions
