@@ -1,0 +1,77 @@
+# Build artifacts
+*.o
+*.obj
+*.exe
+*.out
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+
+# Build directories
+build/
+bin/
+obj/
+out/
+dist/
+
+# Database files and data directories
+*.ibd
+@data/
+test_data*/
+**/test_data*/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Compiler generated files
+*.pch
+*.ilk
+*.pdb
+*.exp
+*.map
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.cache
+*_pycache_*/
+
+# CMake (if used in future)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Coverage reports
+*.gcov
+*.gcda
+*.gcno
+coverage/
+
+# Debug files
+*.dSYM/
+*.stackdump
+
+# Cursor files
+.cursor/
+
+# Kept locally, not in repo history
+fixes/
+docs/
+learning/
+
+.db
+.ibd
